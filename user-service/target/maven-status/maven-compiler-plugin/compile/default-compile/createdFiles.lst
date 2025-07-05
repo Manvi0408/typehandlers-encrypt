@@ -1,12 +1,12 @@
 com/womensafety/userservice/controller/AuthController.class
 com/womensafety/userservice/service/AuthService.class
-com/womensafety/userservice/UserServiceApplication.class
 com/womensafety/userservice/entity/UserRole.class
+com/womensafety/userservice/UserServiceApplication.class
 com/womensafety/userservice/dto/UserResponseDto.class
 com/womensafety/userservice/dto/AuthResponseDto.class
 com/womensafety/userservice/entity/UserRole$Role.class
-com/womensafety/userservice/config/SecurityConfig.class
 com/womensafety/userservice/entity/User.class
+com/womensafety/userservice/config/SecurityConfig.class
 com/womensafety/userservice/service/EmailService.class
 com/womensafety/userservice/config/ApplicationConfig.class
 com/womensafety/userservice/repository/UserRepository.class
