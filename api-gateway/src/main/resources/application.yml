@@ -1,0 +1,212 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  
+  cloud:
+    gateway:
+      routes:
+        # User Service Routes
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - AuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: user-service-cb
+                fallback-uri: forward:/fallback
+        
+        # Alert Service Routes
+        - id: alert-service
+          uri: lb://alert-service
+          predicates:
+            - Path=/api/alerts/**
+          filters:
+            - AuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: alert-service-cb
+                fallback-uri: forward:/fallback
+        
+        # Location Service Routes
+        - id: location-service
+          uri: lb://location-service
+          predicates:
+            - Path=/api/locations/**
+          filters:
+            - AuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: location-service-cb
+                fallback-uri: forward:/fallback
+        
+        # Contact Service Routes
+        - id: contact-service
+          uri: lb://contact-service
+          predicates:
+            - Path=/api/contacts/**
+          filters:
+            - AuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: contact-service-cb
+                fallback-uri: forward:/fallback
+        
+        # Notification Service Routes
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - AuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: notification-service-cb
+                fallback-uri: forward:/fallback
+        
+        # Report Service Routes
+        - id: report-service
+          uri: lb://report-service
+          predicates:
+            - Path=/api/reports/**
+          filters:
+            - AuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: report-service-cb
+                fallback-uri: forward:/fallback
+        
+        # Analytics Service Routes
+        - id: analytics-service
+          uri: lb://analytics-service
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - AuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: analytics-service-cb
+                fallback-uri: forward:/fallback
+        
+        # Auth Routes (no authentication required)
+        - id: auth-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: auth-service-cb
+                fallback-uri: forward:/fallback
+      
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenish-rate: 10
+            redis-rate-limiter.burst-capacity: 20
+            redis-rate-limiter.requested-tokens: 1
+        - name: Retry
+          args:
+            retries: 3
+            methods: GET,POST,PUT,DELETE
+            series: SERVER_ERROR
+        - AddRequestHeader=X-Request-Source, api-gateway
+        - AddResponseHeader=X-Response-Source, api-gateway
+    
+    config:
+      uri: ${CONFIG_SERVICE_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
+  
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+  
+  sleuth:
+    zipkin:
+      base-url: ${ZIPKIN_URL:http://localhost:9411}
+    sampler:
+      probability: 1.0
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL:http://localhost:8761/eureka}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+    com.womensafety.gateway: DEBUG
+
+jwt:
+  secret: ${JWT_SECRET:womensafety-secret-key-for-jwt-token-generation-2024}
+  expiration: 86400000 # 24 hours
+  refresh-expiration: 604800000 # 7 days
+
+security:
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4200}
+  cors:
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
+
+# Rate limiting configuration
+rate-limit:
+  enabled: true
+  per-minute: 100
+  per-hour: 1000
+  per-day: 10000
+
+# Circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service-cb:
+        register-health-indicator: true
+        ring-buffer-size-in-closed-state: 10
+        ring-buffer-size-in-half-open-state: 5
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+      alert-service-cb:
+        register-health-indicator: true
+        ring-buffer-size-in-closed-state: 10
+        ring-buffer-size-in-half-open-state: 5
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s

@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: women-safety-postgres
+    environment:
+      POSTGRES_DB: women_safety
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: women-safety-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: women-safety-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # Zipkin for Distributed Tracing
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: women-safety-zipkin
+    ports:
+      - "9411:9411"
+
+  # Config Service
+  config-service:
+    build: ./config-service
+    container_name: women-safety-config
+    ports:
+      - "8888:8888"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    container_name: women-safety-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - config-service
+      - zipkin
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - ZIPKIN_URL=http://zipkin:9411
+
+  # User Service
+  user-service:
+    build: ./user-service
+    container_name: women-safety-user
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - config-service
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+
+  # Alert Service
+  alert-service:
+    build: ./alert-service
+    container_name: women-safety-alert
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - config-service
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+
+  # Location Service
+  location-service:
+    build: ./location-service
+    container_name: women-safety-location
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - config-service
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+
+  # Contact Service
+  contact-service:
+    build: ./contact-service
+    container_name: women-safety-contact
+    ports:
+      - "8084:8084"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - config-service
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+
+  # Notification Service
+  notification-service:
+    build: ./notification-service
+    container_name: women-safety-notification
+    ports:
+      - "8085:8085"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - config-service
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+
+  # Report Service
+  report-service:
+    build: ./report-service
+    container_name: women-safety-report
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - config-service
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+
+  # Analytics Service
+  analytics-service:
+    build: ./analytics-service
+    container_name: women-safety-analytics
+    ports:
+      - "8087:8087"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - config-service
+    environment:
+      - CONFIG_SERVICE_URL=http://config-service:8888
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  default:
+    name: women-safety-network
