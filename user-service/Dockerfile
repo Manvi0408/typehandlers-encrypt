@@ -1,4 +1,4 @@
-FROM openjdk:17-jdk-slim
+FROM openjdk:21-jdk-slim
 
 LABEL maintainer="Women Safety Platform Team"
 LABEL description="User Service for Women Safety Platform"
@@ -6,10 +6,12 @@ LABEL description="User Service for Women Safety Platform"
 # Set working directory
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml
-COPY mvnw .
-COPY .mvn .mvn
-COPY pom.xml .
+# Copy Maven wrapper and pom.xml first for better caching
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+
+# Make Maven wrapper executable
+RUN chmod +x mvnw
 
 # Download dependencies
 RUN ./mvnw dependency:go-offline -B
@@ -20,21 +22,18 @@ COPY src ./src
 # Build the application
 RUN ./mvnw clean package -DskipTests
 
-# Create non-root user
-RUN addgroup --system spring && adduser --system spring --group spring
+# Create final layer with just the JAR
+FROM openjdk:21-jdk-slim
 
-# Change ownership of the app directory
-RUN chown -R spring:spring /app
+WORKDIR /app
 
-# Switch to non-root user
+# Copy the built JAR from the build stage
+COPY --from=0 /app/target/user-service-1.0.0.jar app.jar
+
+# Create non-root user for security
+RUN addgroup --system spring && adduser --system spring --ingroup spring
 USER spring:spring
 
-# Expose port
 EXPOSE 8081
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8081/api/auth/health || exit 1
-
-# Run the application
-ENTRYPOINT ["java", "-jar", "target/user-service-1.0.0.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
